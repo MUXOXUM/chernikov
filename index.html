@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASCII</title>
     <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
     <div class="container">
@@ -19,7 +18,7 @@
             <div class="controls">
                 <div class="control-group">
                     <label>
-                        <span>Толщина тора:</span>
+                        <span>Torus Thickness:</span>
                         <span id="r1-value" class="slider-value">0.8</span>
                     </label>
                     <div class="slider-container">
@@ -29,7 +28,7 @@
                 
                 <div class="control-group">
                     <label>
-                        <span>Размер тора:</span>
+                        <span>Torus Size:</span>
                         <span id="r2-value" class="slider-value">1.5</span>
                     </label>
                     <div class="slider-container">
@@ -39,7 +38,7 @@
                 
                 <div class="control-group">
                     <label>
-                        <span>Расстояние до наблюдателя:</span>
+                        <span>Observer Distance:</span>
                         <span id="k2-value" class="slider-value">7</span>
                     </label>
                     <div class="slider-container">
@@ -49,7 +48,7 @@
                 
                 <div class="control-group">
                     <label>
-                        <span>Масштаб:</span>
+                        <span>Scale:</span>
                         <span id="k1-value" class="slider-value">100</span>
                     </label>
                     <div class="slider-container">
@@ -59,7 +58,7 @@
                 
                 <div class="control-group">
                     <label>
-                        <span>Скорость анимации:</span>
+                        <span>Animation Speed:</span>
                         <span id="speed-value" class="slider-value">10</span>
                     </label>
                     <div class="slider-container">
@@ -69,7 +68,7 @@
                 
                 <div class="control-group">
                     <label>
-                        <span>Разрешение:</span>
+                        <span>Resolution:</span>
                         <span id="resolution-value" class="slider-value">0.015</span>
                     </label>
                     <div class="slider-container">
@@ -77,11 +76,42 @@
                     </div>
                 </div>
                 
-                <button id="reset-button" class="button">Сбросить параметры</button>
+                <button id="reset-button" class="button">Reset Parameters</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Color selection modal window -->
+    <div id="color-modal" class="modal">
+        <div class="modal-content">
+            <h2>Select Interface Color</h2>
+            <div class="color-options">
+                <div class="color-option" data-color="green">
+                    <span class="selector">></span>
+                    <span>Green</span>
+                </div>
+                <div class="color-option" data-color="blue">
+                    <span class="selector">></span>
+                    <span>Blue</span>
+                </div>
+                <div class="color-option" data-color="purple">
+                    <span class="selector">></span>
+                    <span>Purple</span>
+                </div>
+                <div class="color-option" data-color="yellow">
+                    <span class="selector">></span>
+                    <span>Yellow</span>
+                </div>
+                <div class="color-option" data-color="red">
+                    <span class="selector">></span>
+                    <span>Red</span>
+                </div>
+            </div>
+            <button id="close-modal" class="button">Close</button>
+        </div>
+    </div>
+
+    <script src="script_render.js"></script>
+    <script src="script_modal.js"></script>
 </body>
 </html>

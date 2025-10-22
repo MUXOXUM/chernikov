@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let mouseRotationZ = 0; // Накопленное вращение от мыши по Z
     
     // Флаги для управления анимацией
-    let isHovered = false;
     let isAutoRotating = true;
     
     // Обновление значений на слайдерах
@@ -146,25 +145,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.addEventListener('mouseup', function() {
         isMouseDown = false;
-        asciiContainer.style.cursor = isHovered ? 'grab' : 'default';
+        asciiContainer.style.cursor = 'grab';
+        
+        // Возобновляем автоматическое вращение после отпускания мыши
+        isAutoRotating = true;
     });
     
     // Обработчики для наведения курсора
     asciiContainer.addEventListener('mouseenter', function() {
-        isHovered = true;
         asciiContainer.style.cursor = 'grab';
-        // Останавливаем автоматическое вращение при наведении
-        isAutoRotating = false;
     });
     
     asciiContainer.addEventListener('mouseleave', function() {
-        isHovered = false;
         asciiContainer.style.cursor = 'default';
-        
-        // Если мышь отпустили и ушли из контейнера, возобновляем автоматическое вращение
-        if (!isMouseDown) {
-            isAutoRotating = true;
-        }
     });
     
     // Обработчик для сенсорных устройств

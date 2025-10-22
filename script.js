@@ -1,3 +1,76 @@
+class NotificationSystem {
+    constructor() {
+        this.container = document.getElementById('notification-container');
+    }
+
+    show(message, type = 'info', duration = 3000) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        const icons = {
+            success: '✅',
+            warning: '⚠️',
+            error: '❌',
+            info: 'ℹ️'
+        };
+
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">${icons[type]}</span>
+                <span class="notification-message">${message}</span>
+            </div>
+        `;
+
+        this.container.appendChild(notification);
+
+        // Запускаем анимацию появления
+        setTimeout(() => {
+            notification.style.animation = 'slideIn 0.3s ease';
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+                notification.style.opacity = '1';
+            }, 10);
+        }, 10);
+
+        // Автоматическое скрытие
+        setTimeout(() => {
+            this.hide(notification);
+        }, duration);
+
+        return notification;
+    }
+
+    hide(notification) {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 10);
+    }
+
+    // Вспомогательные методы для разных типов уведомлений
+    success(message, duration = 3000) {
+        return this.show(message, 'success', duration);
+    }
+
+    error(message, duration = 3000) {
+        return this.show(message, 'error', duration);
+    }
+
+    warning(message, duration = 3000) {
+        return this.show(message, 'warning', duration);
+    }
+
+    info(message, duration = 3000) {
+        return this.show(message, 'info', duration);
+    }
+}
+
 class BaldaGame {
     constructor() {
         this.gameState = null;
@@ -5,9 +78,20 @@ class BaldaGame {
         this.playerNumber = null;
         this.selectedCell = null;
         this.selectedLetter = null;
+        this.notification = new NotificationSystem();
+        this.waitingInterval = null;
         
         this.initializeEventListeners();
         this.setupStorageListener();
+        
+        // Проверка URL на наличие кода игры при загрузке
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameCode = urlParams.get('game');
+        
+        if (gameCode) {
+            document.getElementById('game-code-input').value = gameCode;
+            this.notification.info(`Найдена игра с кодом: ${gameCode}. Нажмите "Присоединиться"`);
+        }
     }
 
     initializeEventListeners() {
@@ -49,24 +133,26 @@ class BaldaGame {
             scores: {1: 0, 2: 0},
             selectedCell: null,
             selectedLetter: null,
-            status: 'waiting'
+            status: 'waiting',
+            usedWords: []
         };
 
         this.saveGameState();
         this.showWaitingScreen();
+        this.notification.success('Игра создана! Ожидаем второго игрока...');
     }
 
     joinGame() {
         const gameCode = document.getElementById('game-code-input').value.trim().toUpperCase();
         
         if (!gameCode || gameCode.length !== 6) {
-            alert('Пожалуйста, введите корректный код игры (6 символов)');
+            this.notification.error('Пожалуйста, введите корректный код игры (6 символов)');
             return;
         }
 
         const savedState = localStorage.getItem(`balda_${gameCode}`);
         if (!savedState) {
-            alert('Игра не найдена! Проверьте код игры.');
+            this.notification.error('Игра не найдена! Проверьте код игры.');
             return;
         }
 
@@ -74,7 +160,7 @@ class BaldaGame {
         this.gameState = JSON.parse(savedState);
         
         if (this.gameState.players.length >= 2) {
-            alert('В этой игре уже есть два игрока!');
+            this.notification.error('В этой игре уже есть два игрока!');
             return;
         }
 
@@ -84,6 +170,7 @@ class BaldaGame {
         
         this.saveGameState();
         this.showGameScreen();
+        this.notification.success('Вы успешно присоединились к игре!');
     }
 
     initializeBoard() {
@@ -130,6 +217,7 @@ class BaldaGame {
                     clearInterval(this.waitingInterval);
                     this.gameState = state;
                     this.showGameScreen();
+                    this.notification.success('Второй игрок присоединился! Игра начинается!');
                 }
             }
         }, 1000);
@@ -211,28 +299,29 @@ class BaldaGame {
 
     selectCell(row, col) {
         if (this.gameState.currentPlayer !== this.playerNumber) {
-            alert('Сейчас не ваш ход!');
+            this.notification.warning('Сейчас не ваш ход!');
             return;
         }
         
         if (this.gameState.board[row][col] !== '') {
-            alert('Эта клетка уже занята!');
+            this.notification.warning('Эта клетка уже занята!');
             return;
         }
         
         this.gameState.selectedCell = { row, col };
         this.saveGameState();
         this.renderBoard();
+        this.notification.info('Клетка выбрана. Теперь выберите букву.');
     }
 
     selectLetter(letter) {
         if (!this.gameState.selectedCell) {
-            alert('Сначала выберите клетку!');
+            this.notification.warning('Сначала выберите клетку!');
             return;
         }
         
         if (this.gameState.currentPlayer !== this.playerNumber) {
-            alert('Сейчас не ваш ход!');
+            this.notification.warning('Сейчас не ваш ход!');
             return;
         }
         
@@ -240,6 +329,7 @@ class BaldaGame {
         this.saveGameState();
         this.renderLetterSelection();
         this.showWordModal();
+        this.notification.info(`Выбрана буква "${letter}". Введите слово.`);
     }
 
     showWordModal() {
@@ -253,29 +343,40 @@ class BaldaGame {
         this.gameState.selectedLetter = null;
         this.saveGameState();
         this.renderLetterSelection();
+        this.notification.info('Выбор слова отменен');
     }
 
     submitWord() {
         const word = document.getElementById('word-input').value.trim().toUpperCase();
         
         if (!word) {
-            alert('Пожалуйста, введите слово!');
+            this.notification.error('Пожалуйста, введите слово!');
             return;
         }
         
         if (word.length < 2) {
-            alert('Слово должно содержать хотя бы 2 буквы!');
+            this.notification.error('Слово должно содержать хотя бы 2 буквы!');
             return;
         }
         
-        // Здесь должна быть проверка слова по словарю
-        // Пока просто принимаем любое слово
+        // Проверяем, не использовалось ли слово ранее
+        if (this.gameState.usedWords.includes(word)) {
+            this.notification.error('Это слово уже использовалось в игре!');
+            return;
+        }
+        
+        // Проверяем, можно ли составить слово из букв на поле
+        if (!this.validateWord(word)) {
+            this.notification.error('Невозможно составить это слово из доступных букв!');
+            return;
+        }
         
         const { row, col } = this.gameState.selectedCell;
         this.gameState.board[row][col] = this.gameState.selectedLetter;
         
         // Начисляем очки (длина слова)
         this.gameState.scores[this.playerNumber] += word.length;
+        this.gameState.usedWords.push(word);
         
         // Передаем ход
         this.gameState.currentPlayer = this.gameState.currentPlayer === 1 ? 2 : 1;
@@ -286,7 +387,13 @@ class BaldaGame {
         this.hideWordModal();
         this.renderGame();
         
-        alert(`Слово "${word}" принято! +${word.length} очков`);
+        this.notification.success(`Слово "${word}" принято! +${word.length} очков`);
+    }
+
+    validateWord(word) {
+        // Простая проверка - слово должно содержать выбранную букву
+        // В реальной игре здесь должна быть сложная логика проверки пути по полю
+        return word.includes(this.gameState.selectedLetter);
     }
 
     saveGameState() {
@@ -301,8 +408,15 @@ class BaldaGame {
                 if (this.gameState && newState) {
                     // Обновляем состояние только если это не наш собственный ход
                     if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
+                        const wasMyTurn = this.gameState.currentPlayer === this.playerNumber;
                         this.gameState = newState;
                         this.renderGame();
+                        
+                        if (wasMyTurn && this.gameState.currentPlayer !== this.playerNumber) {
+                            this.notification.info('Ход перешел к другому игроку');
+                        } else if (!wasMyTurn && this.gameState.currentPlayer === this.playerNumber) {
+                            this.notification.success('Ваш ход!');
+                        }
                     }
                 }
             }
@@ -313,7 +427,7 @@ class BaldaGame {
         const linkInput = document.getElementById('invite-link-input');
         linkInput.select();
         document.execCommand('copy');
-        alert('Ссылка скопирована в буфер обмена!');
+        this.notification.success('Ссылка скопирована в буфер обмена!');
     }
 
     cancelWaiting() {
@@ -322,36 +436,53 @@ class BaldaGame {
         }
         localStorage.removeItem(`balda_${this.gameId}`);
         this.showScreen('start-screen');
+        this.notification.info('Создание игры отменено');
     }
 
     restartGame() {
+        if (this.gameState.currentPlayer !== this.playerNumber) {
+            this.notification.warning('Только текущий игрок может начать новую игру!');
+            return;
+        }
+
         this.gameState.board = this.initializeBoard();
         this.gameState.scores = {1: 0, 2: 0};
         this.gameState.currentPlayer = 1;
         this.gameState.selectedCell = null;
         this.gameState.selectedLetter = null;
+        this.gameState.usedWords = [];
         
         this.saveGameState();
         this.renderGame();
+        this.notification.success('Новая игра начата!');
     }
 
     leaveGame() {
         if (confirm('Вы уверены, что хотите выйти из игры?')) {
             localStorage.removeItem(`balda_${this.gameId}`);
             this.showScreen('start-screen');
+            this.notification.info('Вы вышли из игры');
         }
     }
 }
 
-// Проверка URL на наличие кода игры при загрузке
+// Инициализация игры при загрузке страницы
 window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const gameCode = urlParams.get('game');
-    
-    if (gameCode) {
-        document.getElementById('game-code-input').value = gameCode;
-    }
-    
-    // Инициализация игры
     window.baldaGame = new BaldaGame();
+});
+
+// Обработка изменения видимости страницы для улучшения синхронизации
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && window.baldaGame && window.baldaGame.gameId) {
+        // При возвращении на вкладку проверяем обновления
+        const savedState = localStorage.getItem(`balda_${window.baldaGame.gameId}`);
+        if (savedState && window.baldaGame.gameState) {
+            const newState = JSON.parse(savedState);
+            if (JSON.stringify(window.baldaGame.gameState) !== JSON.stringify(newState)) {
+                window.baldaGame.gameState = newState;
+                window.baldaGame.renderGame();
+                window.baldaGame.notification.info('Состояние игры обновлено');
+            }
+        }
+    }
 });

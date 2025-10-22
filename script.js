@@ -1,679 +1,173 @@
-class NotificationSystem {
-    constructor() {
-        this.container = document.getElementById('notification-container');
-    }
-
-    show(message, type = 'info', duration = 3000) {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        
-        const icons = {
-            success: '✅',
-            warning: '⚠️',
-            error: '❌',
-            info: 'ℹ️'
-        };
-
-        notification.innerHTML = `
-            <div class="notification-content">
-                <span class="notification-icon">${icons[type]}</span>
-                <span class="notification-message">${message}</span>
-            </div>
-        `;
-
-        this.container.appendChild(notification);
-
-        // Запускаем анимацию появления
-        setTimeout(() => {
-            notification.style.animation = 'slideIn 0.3s ease';
-            setTimeout(() => {
-                notification.style.transform = 'translateX(0)';
-                notification.style.opacity = '1';
-            }, 10);
-        }, 10);
-
-        // Автоматическое скрытие
-        setTimeout(() => {
-            this.hide(notification);
-        }, duration);
-
-        return notification;
-    }
-
-    hide(notification) {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            notification.style.transform = 'translateX(100%)';
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 10);
-    }
-
-    // Вспомогательные методы для разных типов уведомлений
-    success(message, duration = 3000) {
-        return this.show(message, 'success', duration);
-    }
-
-    error(message, duration = 3000) {
-        return this.show(message, 'error', duration);
-    }
-
-    warning(message, duration = 3000) {
-        return this.show(message, 'warning', duration);
-    }
-
-    info(message, duration = 3000) {
-        return this.show(message, 'info', duration);
-    }
-}
-
-class Dictionary {
-    constructor() {
-        this.words = new Set();
-        this.loaded = false;
-        this.loadDictionary();
-    }
-
-    async loadDictionary() {
-        try {
-            const response = await fetch('dictionary.txt');
-            const text = await response.text();
-            const words = text.split('\n').map(word => word.trim().toUpperCase()).filter(word => word.length > 0);
+        document.addEventListener('DOMContentLoaded', function() {
+            const asciiContainer = document.getElementById('ascii-torus');
             
-            words.forEach(word => {
-                this.words.add(word);
+            // Элементы управления
+            const r1Slider = document.getElementById('r1-slider');
+            const r2Slider = document.getElementById('r2-slider');
+            const k1Slider = document.getElementById('k1-slider');
+            const k2Slider = document.getElementById('k2-slider');
+            const speedSlider = document.getElementById('speed-slider');
+            const resolutionSlider = document.getElementById('resolution-slider');
+            const resetButton = document.getElementById('reset-button');
+            
+            const r1Value = document.getElementById('r1-value');
+            const r2Value = document.getElementById('r2-value');
+            const k1Value = document.getElementById('k1-value');
+            const k2Value = document.getElementById('k2-value');
+            const speedValue = document.getElementById('speed-value');
+            const resolutionValue = document.getElementById('resolution-value');
+            
+            // Размеры контейнера для отображения
+            const width = 120;
+            const height = 60;
+            
+            // Параметры тора
+            let R1 = parseFloat(r1Slider.value);  // Толщина трубки тора
+            let R2 = parseFloat(r2Slider.value);  // Размер тора
+            let K1 = parseFloat(k1Slider.value);  // Масштаб (отдельный параметр)
+            let K2 = parseFloat(k2Slider.value);  // Расстояние от наблюдателя
+            let speedFactor = parseInt(speedSlider.value) * 15; // Скорость анимации (1-10) * 15
+            let resolution = parseFloat(resolutionSlider.value); // Разрешение
+            
+            // ASCII символы для отрисовки (от темного к светлому)
+            const chars = ".,-~:;=!*#$@";
+            
+            // Буферы для хранения z-координат и символов
+            const zBuffer = new Array(width * height).fill(0);
+            const outputBuffer = new Array(width * height).fill(' ');
+            
+            let A = 0;  // Угол вращения вокруг оси X
+            let B = 0;  // Угол вращения вокруг оси Z
+            
+            // Обновление значений на слайдерах
+            function updateSliderValues() {
+                r1Value.textContent = R1.toFixed(1);
+                r2Value.textContent = R2.toFixed(1);
+                k1Value.textContent = K1.toFixed(0);
+                k2Value.textContent = K2.toFixed(0);
+                speedValue.textContent = parseInt(speedSlider.value); // Отображаем исходное значение (1-10)
+                resolutionValue.textContent = resolution.toFixed(3);
+            }
+            
+            // Обработчики событий для слайдеров
+            r1Slider.addEventListener('input', function() {
+                R1 = parseFloat(this.value);
+                updateSliderValues();
             });
             
-            this.loaded = true;
-            console.log(`Загружено ${this.words.size} слов из словаря`);
-        } catch (error) {
-            console.error('Ошибка загрузки словаря:', error);
-            this.loaded = false;
-        }
-    }
-
-    isValid(word) {
-        if (!this.loaded) {
-            // Если словарь не загружен, принимаем все слова
-            return true;
-        }
-        return this.words.has(word.toUpperCase());
-    }
-}
-
-class BaldaGame {
-    constructor() {
-        this.gameState = null;
-        this.gameId = null;
-        this.playerNumber = null;
-        this.selectedCell = null;
-        this.selectedLetter = null;
-        this.notification = new NotificationSystem();
-        this.dictionary = new Dictionary();
-        this.waitingInterval = null;
-        this.pendingWord = null;
-        
-        this.initializeEventListeners();
-        this.setupStorageListener();
-        
-        // Проверка URL на наличие кода игры при загрузке
-        const urlParams = new URLSearchParams(window.location.search);
-        const gameCode = urlParams.get('game');
-        
-        if (gameCode) {
-            document.getElementById('game-code-input').value = gameCode;
-            this.notification.info(`Найдена игра с кодом: ${gameCode}. Нажмите "Присоединиться"`);
-        }
-    }
-
-    initializeEventListeners() {
-        // Кнопки начала
-        document.getElementById('create-game-btn').addEventListener('click', () => this.createGame());
-        document.getElementById('join-game-btn').addEventListener('click', () => this.joinGame());
-        document.getElementById('game-code-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.joinGame();
-        });
-
-        // Кнопки ожидания
-        document.getElementById('copy-link-btn').addEventListener('click', () => this.copyInviteLink());
-        document.getElementById('cancel-waiting-btn').addEventListener('click', () => this.cancelWaiting());
-
-        // Игровые кнопки
-        document.getElementById('restart-game-btn').addEventListener('click', () => this.restartGame());
-        document.getElementById('leave-game-btn').addEventListener('click', () => this.leaveGame());
-
-        // Модальное окно
-        document.getElementById('submit-word-btn').addEventListener('click', () => this.submitWord());
-        document.getElementById('cancel-word-btn').addEventListener('click', () => this.hideWordModal());
-        document.getElementById('word-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.submitWord();
-        });
-    }
-
-    generateGameId() {
-        return Math.random().toString(36).substring(2, 8).toUpperCase();
-    }
-
-    createGame() {
-        this.gameId = this.generateGameId();
-        this.playerNumber = 1;
-        
-        this.gameState = {
-            players: [1],
-            currentPlayer: 1,
-            board: this.initializeBoard(),
-            scores: {1: 0, 2: 0},
-            selectedCell: null,
-            selectedLetter: null,
-            status: 'waiting',
-            usedWords: [],
-            pendingWord: null,
-            pendingWordPlayer: null,
-            pendingWordCell: null,
-            pendingWordLetter: null
-        };
-
-        this.saveGameState();
-        this.showWaitingScreen();
-        this.notification.success('Игра создана! Ожидаем второго игрока...');
-    }
-
-    joinGame() {
-        const gameCode = document.getElementById('game-code-input').value.trim().toUpperCase();
-        
-        if (!gameCode || gameCode.length !== 6) {
-            this.notification.error('Пожалуйста, введите корректный код игры (6 символов)');
-            return;
-        }
-
-        const savedState = localStorage.getItem(`balda_${gameCode}`);
-        if (!savedState) {
-            this.notification.error('Игра не найдена! Проверьте код игры.');
-            return;
-        }
-
-        this.gameId = gameCode;
-        this.gameState = JSON.parse(savedState);
-        
-        if (this.gameState.players.length >= 2) {
-            this.notification.error('В этой игре уже есть два игрока!');
-            return;
-        }
-
-        this.playerNumber = 2;
-        this.gameState.players.push(2);
-        this.gameState.status = 'playing';
-        
-        this.saveGameState();
-        this.showGameScreen();
-        this.notification.success('Вы успешно присоединились к игре!');
-    }
-
-    initializeBoard() {
-        const board = [];
-        for (let i = 0; i < 5; i++) {
-            board[i] = [];
-            for (let j = 0; j < 5; j++) {
-                board[i][j] = '';
-            }
-        }
-        
-        // Стартовое слово "БАЛДА" в центре
-        const startWord = 'БАЛДА';
-        const startRow = 2;
-        const startCol = 0;
-        
-        for (let i = 0; i < startWord.length; i++) {
-            board[startRow][startCol + i] = startWord[i];
-        }
-        
-        return board;
-    }
-
-    showScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(screen => {
-            screen.classList.remove('active');
-        });
-        document.getElementById(screenId).classList.add('active');
-    }
-
-    showWaitingScreen() {
-        this.showScreen('waiting-screen');
-        document.getElementById('game-code-display').textContent = this.gameId;
-        
-        const inviteLink = `${window.location.origin}${window.location.pathname}?game=${this.gameId}`;
-        document.getElementById('invite-link-input').value = inviteLink;
-        
-        // Проверяем, присоединился ли второй игрок
-        this.waitingInterval = setInterval(() => {
-            const savedState = localStorage.getItem(`balda_${this.gameId}`);
-            if (savedState) {
-                const state = JSON.parse(savedState);
-                if (state.players.length === 2 && state.status === 'playing') {
-                    clearInterval(this.waitingInterval);
-                    this.gameState = state;
-                    this.showGameScreen();
-                    this.notification.success('Второй игрок присоединился! Игра начинается!');
-                }
-            }
-        }, 1000);
-    }
-
-    showGameScreen() {
-        this.showScreen('game-screen');
-        this.renderGame();
-        document.getElementById('game-code-small').textContent = `Код: ${this.gameId}`;
-    }
-
-    renderGame() {
-        this.renderBoard();
-        this.renderPlayers();
-        this.renderLetterSelection();
-        this.renderPendingWord();
-    }
-
-    renderBoard() {
-        const boardElement = document.getElementById('board');
-        boardElement.innerHTML = '';
-        
-        for (let i = 0; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.textContent = this.gameState.board[i][j];
-                cell.dataset.row = i;
-                cell.dataset.col = j;
+            r2Slider.addEventListener('input', function() {
+                R2 = parseFloat(this.value);
+                updateSliderValues();
+            });
+            
+            k1Slider.addEventListener('input', function() {
+                K1 = parseFloat(this.value);
+                updateSliderValues();
+            });
+            
+            k2Slider.addEventListener('input', function() {
+                K2 = parseFloat(this.value);
+                updateSliderValues();
+            });
+            
+            speedSlider.addEventListener('input', function() {
+                speedFactor = parseInt(this.value) * 15; // Умножаем на 15 для реальной скорости
+                updateSliderValues();
+            });
+            
+            resolutionSlider.addEventListener('input', function() {
+                resolution = parseFloat(this.value);
+                updateSliderValues();
+            });
+            
+            // Сброс параметров
+            resetButton.addEventListener('click', function() {
+                R1 = 0.8;
+                R2 = 1.5;
+                K1 = 100;
+                K2 = 7;
+                speedSlider.value = 10; // Устанавливаем значение 5 (середина диапазона)
+                speedFactor = 10 * 15; // Умножаем на 15
+                resolution = 0.015;
                 
-                // Центральная строка с начальным словом выделяется
-                if (i === 2 && j >= 0 && j <= 4) {
-                    cell.classList.add('center');
-                }
+                r1Slider.value = R1;
+                r2Slider.value = R2;
+                k1Slider.value = K1;
+                k2Slider.value = K2;
+                resolutionSlider.value = resolution;
                 
-                if (this.gameState.selectedCell && 
-                    this.gameState.selectedCell.row === i && 
-                    this.gameState.selectedCell.col === j) {
-                    cell.classList.add('selected');
-                }
+                updateSliderValues();
+            });
+            
+            function renderFrame() {
+                // Очищаем буферы
+                zBuffer.fill(0);
+                outputBuffer.fill(' ');
                 
-                cell.addEventListener('click', () => this.selectCell(i, j));
-                boardElement.appendChild(cell);
-            }
-        }
-    }
-
-    renderPlayers() {
-        const player1 = document.getElementById('player1');
-        const player2 = document.getElementById('player2');
-        
-        player1.classList.toggle('active', this.gameState.currentPlayer === 1);
-        player2.classList.toggle('active', this.gameState.currentPlayer === 2);
-        
-        player1.querySelector('.score').textContent = this.gameState.scores[1];
-        player2.querySelector('.score').textContent = this.gameState.scores[2];
-        
-        document.getElementById('current-turn').textContent = 
-            `Ход: Игрок ${this.gameState.currentPlayer}`;
-    }
-
-    renderLetterSelection() {
-        const letters = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ';
-        const container = document.getElementById('letter-selection');
-        container.innerHTML = '';
-        
-        for (let letter of letters) {
-            const btn = document.createElement('button');
-            btn.className = 'letter-btn';
-            btn.textContent = letter;
-            
-            if (this.gameState.selectedLetter === letter) {
-                btn.classList.add('selected');
-            }
-            
-            btn.addEventListener('click', () => this.selectLetter(letter));
-            container.appendChild(btn);
-        }
-    }
-
-    renderPendingWord() {
-        // Убираем старые кнопки подтверждения
-        const oldApproveBtn = document.getElementById('approve-word-btn');
-        const oldRejectBtn = document.getElementById('reject-word-btn');
-        if (oldApproveBtn) oldApproveBtn.remove();
-        if (oldRejectBtn) oldRejectBtn.remove();
-
-        // Показываем кнопки подтверждения если есть слово на подтверждении и это НЕ наш ход
-        if (this.gameState.pendingWord && 
-            this.gameState.pendingWordPlayer !== this.playerNumber && 
-            this.gameState.currentPlayer === this.playerNumber) {
-            
-            const gameControls = document.querySelector('.game-controls');
-            
-            const approveBtn = document.createElement('button');
-            approveBtn.id = 'approve-word-btn';
-            approveBtn.className = 'btn btn-primary';
-            approveBtn.textContent = `Принять "${this.gameState.pendingWord}"`;
-            approveBtn.addEventListener('click', () => this.approvePendingWord());
-            
-            const rejectBtn = document.createElement('button');
-            rejectBtn.id = 'reject-word-btn';
-            rejectBtn.className = 'btn btn-secondary';
-            rejectBtn.textContent = 'Отклонить';
-            rejectBtn.addEventListener('click', () => this.rejectPendingWord());
-            
-            gameControls.prepend(rejectBtn);
-            gameControls.prepend(approveBtn);
-        }
-    }
-
-    selectCell(row, col) {
-        if (this.gameState.pendingWord) {
-            this.notification.warning('Сначала разрешите pending слово!');
-            return;
-        }
-        
-        if (this.gameState.currentPlayer !== this.playerNumber) {
-            this.notification.warning('Сейчас не ваш ход!');
-            return;
-        }
-        
-        if (this.gameState.board[row][col] !== '') {
-            this.notification.warning('Эта клетка уже занята!');
-            return;
-        }
-        
-        this.gameState.selectedCell = { row, col };
-        this.saveGameState();
-        this.renderBoard();
-        this.notification.info('Клетка выбрана. Теперь выберите букву.');
-    }
-
-    selectLetter(letter) {
-        if (this.gameState.pendingWord) {
-            this.notification.warning('Сначала разрешите pending слово!');
-            return;
-        }
-        
-        if (!this.gameState.selectedCell) {
-            this.notification.warning('Сначала выберите клетку!');
-            return;
-        }
-        
-        if (this.gameState.currentPlayer !== this.playerNumber) {
-            this.notification.warning('Сейчас не ваш ход!');
-            return;
-        }
-        
-        this.gameState.selectedLetter = letter;
-        this.saveGameState();
-        this.renderLetterSelection();
-        this.showWordModal();
-        this.notification.info(`Выбрана буква "${letter}". Введите слово.`);
-    }
-
-    showWordModal() {
-        document.getElementById('word-modal').style.display = 'block';
-        document.getElementById('word-input').value = '';
-        document.getElementById('word-input').focus();
-    }
-
-    hideWordModal() {
-        document.getElementById('word-modal').style.display = 'none';
-        this.gameState.selectedLetter = null;
-        this.saveGameState();
-        this.renderLetterSelection();
-        this.notification.info('Выбор слова отменен');
-    }
-
-    async submitWord() {
-        const word = document.getElementById('word-input').value.trim().toUpperCase();
-        
-        if (!word) {
-            this.notification.error('Пожалуйста, введите слово!');
-            return;
-        }
-        
-        if (word.length < 2) {
-            this.notification.error('Слово должно содержать хотя бы 2 буквы!');
-            return;
-        }
-        
-        // Проверяем, не использовалось ли слово ранее
-        if (this.gameState.usedWords.includes(word)) {
-            this.notification.error('Это слово уже использовалось в игре!');
-            return;
-        }
-        
-        // Проверяем, можно ли составить слово из букв на поле
-        if (!this.validateWord(word)) {
-            this.notification.error('Невозможно составить это слово из доступных букв!');
-            return;
-        }
-
-        // Проверяем слово в словаре
-        const isValidInDictionary = this.dictionary.isValid(word);
-        
-        if (isValidInDictionary) {
-            // Слово есть в словаре - сразу принимаем
-            this.acceptWord(word);
-        } else {
-            // Слова нет в словаре - отправляем на подтверждение противнику
-            this.sendWordForApproval(word);
-        }
-    }
-
-    validateWord(word) {
-        // Простая проверка - слово должно содержать выбранную букву
-        // В реальной игре здесь должна быть сложная логика проверки пути по полю
-        return word.includes(this.gameState.selectedLetter);
-    }
-
-    acceptWord(word) {
-        const { row, col } = this.gameState.selectedCell;
-        this.gameState.board[row][col] = this.gameState.selectedLetter;
-        
-        // Начисляем очки (длина слова)
-        this.gameState.scores[this.playerNumber] += word.length;
-        this.gameState.usedWords.push(word);
-        
-        // Передаем ход
-        this.gameState.currentPlayer = this.gameState.currentPlayer === 1 ? 2 : 1;
-        this.gameState.selectedCell = null;
-        this.gameState.selectedLetter = null;
-        this.gameState.pendingWord = null;
-        this.gameState.pendingWordPlayer = null;
-        this.gameState.pendingWordCell = null;
-        this.gameState.pendingWordLetter = null;
-        
-        this.saveGameState();
-        this.hideWordModal();
-        this.renderGame();
-        
-        this.notification.success(`Слово "${word}" принято! +${word.length} очков`);
-    }
-
-    sendWordForApproval(word) {
-        // Сохраняем всю информацию о ходе для восстановления
-        this.gameState.pendingWord = word;
-        this.gameState.pendingWordPlayer = this.playerNumber;
-        this.gameState.pendingWordCell = { ...this.gameState.selectedCell };
-        this.gameState.pendingWordLetter = this.gameState.selectedLetter;
-        this.gameState.status = 'pending_approval';
-        
-        // Очищаем выбранные значения, но сохраняем ход у текущего игрока
-        this.gameState.selectedCell = null;
-        this.gameState.selectedLetter = null;
-        
-        this.saveGameState();
-        this.hideWordModal();
-        this.renderGame();
-        
-        this.notification.info(`Слово "${word}" отправлено на подтверждение противнику`);
-    }
-
-    approvePendingWord() {
-        if (!this.gameState.pendingWord || 
-            this.gameState.pendingWordPlayer === this.playerNumber ||
-            this.gameState.currentPlayer !== this.playerNumber) {
-            return;
-        }
-
-        const word = this.gameState.pendingWord;
-        const opponentPlayer = this.gameState.pendingWordPlayer;
-        
-        // Восстанавливаем клетку и букву из сохраненных данных
-        const { row, col } = this.gameState.pendingWordCell;
-        const letter = this.gameState.pendingWordLetter;
-        
-        // Добавляем букву на поле
-        this.gameState.board[row][col] = letter;
-        
-        // Начисляем очки игроку, который предложил слово
-        this.gameState.scores[opponentPlayer] += word.length;
-        this.gameState.usedWords.push(word);
-        
-        // Очищаем pending слово и передаем ход обратно игроку, который сделал ход
-        this.gameState.pendingWord = null;
-        this.gameState.pendingWordPlayer = null;
-        this.gameState.pendingWordCell = null;
-        this.gameState.pendingWordLetter = null;
-        this.gameState.status = 'playing';
-        this.gameState.currentPlayer = opponentPlayer; // Ход остается у игрока, который сделал ход
-        
-        this.saveGameState();
-        this.renderGame();
-        
-        this.notification.success(`Слово "${word}" принято по вашему разрешению!`);
-    }
-
-    rejectPendingWord() {
-        if (!this.gameState.pendingWord || 
-            this.gameState.pendingWordPlayer === this.playerNumber ||
-            this.gameState.currentPlayer !== this.playerNumber) {
-            return;
-        }
-
-        const word = this.gameState.pendingWord;
-        
-        // Очищаем pending слово, ход переходит к следующему игроку
-        this.gameState.pendingWord = null;
-        this.gameState.pendingWordPlayer = null;
-        this.gameState.pendingWordCell = null;
-        this.gameState.pendingWordLetter = null;
-        this.gameState.status = 'playing';
-        this.gameState.currentPlayer = this.gameState.pendingWordPlayer; // Ход переходит к игроку, который предложил слово
-        
-        this.saveGameState();
-        this.renderGame();
-        
-        this.notification.warning(`Слово "${word}" отклонено`);
-    }
-
-    saveGameState() {
-        localStorage.setItem(`balda_${this.gameId}`, JSON.stringify(this.gameState));
-    }
-
-    setupStorageListener() {
-        window.addEventListener('storage', (e) => {
-            if (e.key === `balda_${this.gameId}` && e.newValue) {
-                const newState = JSON.parse(e.newValue);
+                // Вычисляем синусы и косинусы углов
+                const cosA = Math.cos(A);
+                const sinA = Math.sin(A);
+                const cosB = Math.cos(B);
+                const sinB = Math.sin(B);
                 
-                if (this.gameState && newState) {
-                    // Обновляем состояние только если это не наш собственный ход
-                    if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
-                        const wasMyTurn = this.gameState.currentPlayer === this.playerNumber;
-                        const hadPendingWord = this.gameState.pendingWord;
+                // Проходим по углам тора
+                for (let theta = 0; theta < 2 * Math.PI; theta += 0.07) {
+                    const cosTheta = Math.cos(theta);
+                    const sinTheta = Math.sin(theta);
+                    
+                    // Используем настройку разрешения для угла phi
+                    for (let phi = 0; phi < 2 * Math.PI; phi += resolution) {
+                        const cosPhi = Math.cos(phi);
+                        const sinPhi = Math.sin(phi);
                         
-                        this.gameState = newState;
-                        this.renderGame();
+                        // Вычисляем координаты точки на торе
+                        const circleX = R2 + R1 * cosTheta;
+                        const circleY = R1 * sinTheta;
                         
-                        // Уведомление о новом слове на подтверждение
-                        if (newState.pendingWord && 
-                            newState.pendingWordPlayer !== this.playerNumber && 
-                            !hadPendingWord) {
-                            this.notification.warning(`Игрок ${newState.pendingWordPlayer} предложил слово "${newState.pendingWord}" для подтверждения`);
-                        }
+                        // 3D вращение точки
+                        const x = circleX * (cosB * cosPhi + sinA * sinB * sinPhi) - circleY * cosA * sinB;
+                        const y = circleX * (sinB * cosPhi - sinA * cosB * sinPhi) + circleY * cosA * cosB;
+                        const z = K2 + cosA * circleX * sinPhi + circleY * sinA;
                         
-                        // Уведомления о смене хода
-                        if (wasMyTurn && this.gameState.currentPlayer !== this.playerNumber && !this.gameState.pendingWord) {
-                            this.notification.info('Ход перешел к другому игроку');
-                        } else if (!wasMyTurn && this.gameState.currentPlayer === this.playerNumber && !this.gameState.pendingWord) {
-                            this.notification.success('Ваш ход!');
+                        // Обратная z-координата для перспективы
+                        const ooz = 1 / z;
+                        
+                        // Проецируем на 2D экран
+                        const xp = Math.floor(width / 2 + K1 * ooz * x);
+                        const yp = Math.floor(height / 2 - K1 * ooz * y);
+                        
+                        // Вычисляем освещение (нормаль к поверхности)
+                        const L = cosPhi * cosTheta * sinB - cosA * cosTheta * sinPhi - sinA * sinTheta + cosB * (cosA * sinTheta - cosTheta * sinA * sinPhi);
+                        
+                        if (L > 0 && xp >= 0 && xp < width && yp >= 0 && yp < height) {
+                            const bufferIndex = yp * width + xp;
+                            if (ooz > zBuffer[bufferIndex]) {
+                                zBuffer[bufferIndex] = ooz;
+                                const luminanceIndex = Math.floor(L * 8);
+                                outputBuffer[bufferIndex] = chars[Math.min(luminanceIndex, chars.length - 1)];
+                            }
                         }
                     }
                 }
+                
+                // Формируем вывод
+                let output = '';
+                for (let i = 0; i < height; i++) {
+                    for (let j = 0; j < width; j++) {
+                        output += outputBuffer[i * width + j];
+                    }
+                    output += '\n';
+                }
+                
+                asciiContainer.textContent = output;
+                
+                // Обновляем углы анимации с учетом скорости
+                A += 0.07 / (speedFactor / 10);
+                B += 0.03 / (speedFactor / 10);
+                
+                requestAnimationFrame(renderFrame);
             }
+            
+            updateSliderValues();
+            renderFrame();
         });
-    }
-
-    copyInviteLink() {
-        const linkInput = document.getElementById('invite-link-input');
-        linkInput.select();
-        document.execCommand('copy');
-        this.notification.success('Ссылка скопирована в буфер обмена!');
-    }
-
-    cancelWaiting() {
-        if (this.waitingInterval) {
-            clearInterval(this.waitingInterval);
-        }
-        localStorage.removeItem(`balda_${this.gameId}`);
-        this.showScreen('start-screen');
-        this.notification.info('Создание игры отменено');
-    }
-
-    restartGame() {
-        if (this.gameState.currentPlayer !== this.playerNumber) {
-            this.notification.warning('Только текущий игрок может начать новую игру!');
-            return;
-        }
-
-        this.gameState.board = this.initializeBoard();
-        this.gameState.scores = {1: 0, 2: 0};
-        this.gameState.currentPlayer = 1;
-        this.gameState.selectedCell = null;
-        this.gameState.selectedLetter = null;
-        this.gameState.usedWords = [];
-        this.gameState.pendingWord = null;
-        this.gameState.pendingWordPlayer = null;
-        this.gameState.pendingWordCell = null;
-        this.gameState.pendingWordLetter = null;
-        this.gameState.status = 'playing';
-        
-        this.saveGameState();
-        this.renderGame();
-        this.notification.success('Новая игра начата!');
-    }
-
-    leaveGame() {
-        if (confirm('Вы уверены, что хотите выйти из игры?')) {
-            localStorage.removeItem(`balda_${this.gameId}`);
-            this.showScreen('start-screen');
-            this.notification.info('Вы вышли из игры');
-        }
-    }
-}
-
-// Инициализация игры при загрузке страницы
-window.addEventListener('DOMContentLoaded', () => {
-    window.baldaGame = new BaldaGame();
-});
-
-// Обработка изменения видимости страницы для улучшения синхронизации
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden && window.baldaGame && window.baldaGame.gameId) {
-        // При возвращении на вкладку проверяем обновления
-        const savedState = localStorage.getItem(`balda_${window.baldaGame.gameId}`);
-        if (savedState && window.baldaGame.gameState) {
-            const newState = JSON.parse(savedState);
-            if (JSON.stringify(window.baldaGame.gameState) !== JSON.stringify(newState)) {
-                window.baldaGame.gameState = newState;
-                window.baldaGame.renderGame();
-                window.baldaGame.notification.info('Состояние игры обновлено');
-            }
-        }
-    }
-});

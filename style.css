@@ -1,0 +1,281 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.screen {
+    display: none;
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.screen.active {
+    display: block;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #4CAF50;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #45a049;
+}
+
+.btn-secondary {
+    background: #f1f1f1;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #ddd;
+}
+
+.btn-small {
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.join-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#game-code-input {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.game-info {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.invite-link {
+    margin: 20px 0;
+}
+
+.link-container {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#invite-link-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: #f9f9f9;
+}
+
+/* Игровой экран */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #eee;
+}
+
+.players-info {
+    display: flex;
+    gap: 20px;
+}
+
+.player {
+    padding: 10px 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.player.active {
+    background: #4CAF50;
+    color: white;
+}
+
+.score {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.game-status {
+    text-align: right;
+}
+
+/* Игровое поле */
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    margin: 20px 0;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.cell {
+    aspect-ratio: 1;
+    border: 2px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cell:hover {
+    background: #f0f0f0;
+}
+
+.cell.selected {
+    background: #4CAF50;
+    color: white;
+}
+
+.cell.center {
+    background: #ffeb3b;
+}
+
+/* Выбор буквы */
+.letter-selection {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+    margin: 20px 0;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.letter-btn {
+    aspect-ratio: 1;
+    border: 1px solid #ddd;
+    background: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+}
+
+.letter-btn:hover {
+    background: #f0f0f0;
+}
+
+.letter-btn.selected {
+    background: #2196F3;
+    color: white;
+}
+
+.game-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* Модальное окно */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 400px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+#word-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+    .game-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .players-info {
+        width: 100%;
+        justify-content: space-around;
+    }
+    
+    .letter-selection {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}

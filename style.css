@@ -59,6 +59,18 @@
      background-color: #001100;
  }
 
+.ascii-container {
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.ascii-container:active {
+    cursor: grabbing;
+}
+
  .controls {
      background-color: #001100;
      border: 1px solid #0a0;

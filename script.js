@@ -71,6 +71,40 @@ class NotificationSystem {
     }
 }
 
+class Dictionary {
+    constructor() {
+        this.words = new Set();
+        this.loaded = false;
+        this.loadDictionary();
+    }
+
+    async loadDictionary() {
+        try {
+            const response = await fetch('dictionary.txt');
+            const text = await response.text();
+            const words = text.split('\n').map(word => word.trim().toUpperCase()).filter(word => word.length > 0);
+            
+            words.forEach(word => {
+                this.words.add(word);
+            });
+            
+            this.loaded = true;
+            console.log(`Загружено ${this.words.size} слов из словаря`);
+        } catch (error) {
+            console.error('Ошибка загрузки словаря:', error);
+            this.loaded = false;
+        }
+    }
+
+    isValid(word) {
+        if (!this.loaded) {
+            // Если словарь не загружен, принимаем все слова
+            return true;
+        }
+        return this.words.has(word.toUpperCase());
+    }
+}
+
 class BaldaGame {
     constructor() {
         this.gameState = null;
@@ -79,7 +113,9 @@ class BaldaGame {
         this.selectedCell = null;
         this.selectedLetter = null;
         this.notification = new NotificationSystem();
+        this.dictionary = new Dictionary();
         this.waitingInterval = null;
+        this.pendingWord = null;
         
         this.initializeEventListeners();
         this.setupStorageListener();
@@ -134,7 +170,9 @@ class BaldaGame {
             selectedCell: null,
             selectedLetter: null,
             status: 'waiting',
-            usedWords: []
+            usedWords: [],
+            pendingWord: null,
+            pendingWordPlayer: null
         };
 
         this.saveGameState();
@@ -233,6 +271,7 @@ class BaldaGame {
         this.renderBoard();
         this.renderPlayers();
         this.renderLetterSelection();
+        this.renderPendingWord();
     }
 
     renderBoard() {
@@ -297,7 +336,40 @@ class BaldaGame {
         }
     }
 
+    renderPendingWord() {
+        // Убираем старые кнопки подтверждения
+        const oldApproveBtn = document.getElementById('approve-word-btn');
+        const oldRejectBtn = document.getElementById('reject-word-btn');
+        if (oldApproveBtn) oldApproveBtn.remove();
+        if (oldRejectBtn) oldRejectBtn.remove();
+
+        // Показываем кнопки подтверждения если есть слово на подтверждении и это не наш ход
+        if (this.gameState.pendingWord && this.gameState.currentPlayer === this.playerNumber) {
+            const gameControls = document.querySelector('.game-controls');
+            
+            const approveBtn = document.createElement('button');
+            approveBtn.id = 'approve-word-btn';
+            approveBtn.className = 'btn btn-primary';
+            approveBtn.textContent = `Принять "${this.gameState.pendingWord}"`;
+            approveBtn.addEventListener('click', () => this.approvePendingWord());
+            
+            const rejectBtn = document.createElement('button');
+            rejectBtn.id = 'reject-word-btn';
+            rejectBtn.className = 'btn btn-secondary';
+            rejectBtn.textContent = 'Отклонить';
+            rejectBtn.addEventListener('click', () => this.rejectPendingWord());
+            
+            gameControls.prepend(rejectBtn);
+            gameControls.prepend(approveBtn);
+        }
+    }
+
     selectCell(row, col) {
+        if (this.gameState.pendingWord) {
+            this.notification.warning('Сначала разрешите pending слово!');
+            return;
+        }
+        
         if (this.gameState.currentPlayer !== this.playerNumber) {
             this.notification.warning('Сейчас не ваш ход!');
             return;
@@ -315,6 +387,11 @@ class BaldaGame {
     }
 
     selectLetter(letter) {
+        if (this.gameState.pendingWord) {
+            this.notification.warning('Сначала разрешите pending слово!');
+            return;
+        }
+        
         if (!this.gameState.selectedCell) {
             this.notification.warning('Сначала выберите клетку!');
             return;
@@ -346,7 +423,7 @@ class BaldaGame {
         this.notification.info('Выбор слова отменен');
     }
 
-    submitWord() {
+    async submitWord() {
         const word = document.getElementById('word-input').value.trim().toUpperCase();
         
         if (!word) {
@@ -370,7 +447,26 @@ class BaldaGame {
             this.notification.error('Невозможно составить это слово из доступных букв!');
             return;
         }
+
+        // Проверяем слово в словаре
+        const isValidInDictionary = this.dictionary.isValid(word);
         
+        if (isValidInDictionary) {
+            // Слово есть в словаре - сразу принимаем
+            this.acceptWord(word);
+        } else {
+            // Слова нет в словаре - отправляем на подтверждение противнику
+            this.sendWordForApproval(word);
+        }
+    }
+
+    validateWord(word) {
+        // Простая проверка - слово должно содержать выбранную букву
+        // В реальной игре здесь должна быть сложная логика проверки пути по полю
+        return word.includes(this.gameState.selectedLetter);
+    }
+
+    acceptWord(word) {
         const { row, col } = this.gameState.selectedCell;
         this.gameState.board[row][col] = this.gameState.selectedLetter;
         
@@ -382,6 +478,8 @@ class BaldaGame {
         this.gameState.currentPlayer = this.gameState.currentPlayer === 1 ? 2 : 1;
         this.gameState.selectedCell = null;
         this.gameState.selectedLetter = null;
+        this.gameState.pendingWord = null;
+        this.gameState.pendingWordPlayer = null;
         
         this.saveGameState();
         this.hideWordModal();
@@ -390,10 +488,67 @@ class BaldaGame {
         this.notification.success(`Слово "${word}" принято! +${word.length} очков`);
     }
 
-    validateWord(word) {
-        // Простая проверка - слово должно содержать выбранную букву
-        // В реальной игре здесь должна быть сложная логика проверки пути по полю
-        return word.includes(this.gameState.selectedLetter);
+    sendWordForApproval(word) {
+        this.gameState.pendingWord = word;
+        this.gameState.pendingWordPlayer = this.playerNumber;
+        this.gameState.status = 'pending_approval';
+        
+        this.saveGameState();
+        this.hideWordModal();
+        this.renderGame();
+        
+        this.notification.info(`Слово "${word}" отправлено на подтверждение противнику`);
+    }
+
+    approvePendingWord() {
+        if (!this.gameState.pendingWord || this.gameState.currentPlayer !== this.playerNumber) {
+            return;
+        }
+
+        const word = this.gameState.pendingWord;
+        const opponentPlayer = this.gameState.pendingWordPlayer;
+        
+        // Начисляем очки игроку, который предложил слово
+        this.gameState.scores[opponentPlayer] += word.length;
+        this.gameState.usedWords.push(word);
+        
+        // Добавляем букву на поле
+        const { row, col } = this.gameState.selectedCell;
+        this.gameState.board[row][col] = this.gameState.selectedLetter;
+        
+        // Очищаем pending слово и передаем ход обратно
+        this.gameState.pendingWord = null;
+        this.gameState.pendingWordPlayer = null;
+        this.gameState.selectedCell = null;
+        this.gameState.selectedLetter = null;
+        this.gameState.status = 'playing';
+        this.gameState.currentPlayer = opponentPlayer; // Ход остается у игрока, который сделал ход
+        
+        this.saveGameState();
+        this.renderGame();
+        
+        this.notification.success(`Слово "${word}" принято по вашему разрешению!`);
+    }
+
+    rejectPendingWord() {
+        if (!this.gameState.pendingWord || this.gameState.currentPlayer !== this.playerNumber) {
+            return;
+        }
+
+        const word = this.gameState.pendingWord;
+        
+        // Очищаем pending слово, ход переходит к следующему игроку
+        this.gameState.pendingWord = null;
+        this.gameState.pendingWordPlayer = null;
+        this.gameState.selectedCell = null;
+        this.gameState.selectedLetter = null;
+        this.gameState.status = 'playing';
+        this.gameState.currentPlayer = this.gameState.currentPlayer === 1 ? 2 : 1;
+        
+        this.saveGameState();
+        this.renderGame();
+        
+        this.notification.warning(`Слово "${word}" отклонено`);
     }
 
     saveGameState() {
@@ -409,12 +564,18 @@ class BaldaGame {
                     // Обновляем состояние только если это не наш собственный ход
                     if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
                         const wasMyTurn = this.gameState.currentPlayer === this.playerNumber;
+                        const hadPendingWord = this.gameState.pendingWord;
+                        
                         this.gameState = newState;
                         this.renderGame();
                         
-                        if (wasMyTurn && this.gameState.currentPlayer !== this.playerNumber) {
+                        if (newState.pendingWord && newState.currentPlayer === this.playerNumber && !hadPendingWord) {
+                            this.notification.warning(`Игрок ${newState.pendingWordPlayer} предложил слово "${newState.pendingWord}" для подтверждения`);
+                        }
+                        
+                        if (wasMyTurn && this.gameState.currentPlayer !== this.playerNumber && !this.gameState.pendingWord) {
                             this.notification.info('Ход перешел к другому игроку');
-                        } else if (!wasMyTurn && this.gameState.currentPlayer === this.playerNumber) {
+                        } else if (!wasMyTurn && this.gameState.currentPlayer === this.playerNumber && !this.gameState.pendingWord) {
                             this.notification.success('Ваш ход!');
                         }
                     }
@@ -451,6 +612,9 @@ class BaldaGame {
         this.gameState.selectedCell = null;
         this.gameState.selectedLetter = null;
         this.gameState.usedWords = [];
+        this.gameState.pendingWord = null;
+        this.gameState.pendingWordPlayer = null;
+        this.gameState.status = 'playing';
         
         this.saveGameState();
         this.renderGame();

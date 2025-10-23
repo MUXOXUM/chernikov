@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const objectOptions = document.querySelectorAll('.object-option');
     
     let selectedObject = null;
-    let currentAnimationId = null;
     
     // Обработчики выбора объекта
     objectOptions.forEach(option => {
@@ -84,11 +83,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function stopCurrentRender() {
-        if (currentAnimationId) {
-            cancelAnimationFrame(currentAnimationId);
-            currentAnimationId = null;
+        // Используем глобальную переменную animationId из движка рендеринга
+        if (typeof animationId !== 'undefined' && animationId !== null) {
+            cancelAnimationFrame(animationId);
+            animationId = null;
         }
         // Очищаем контейнер
         asciiContainer.textContent = '';
+        
+        // Дополнительно очищаем буферы
+        if (typeof clearBuffers === 'function') {
+            clearBuffers();
+        }
     }
 });

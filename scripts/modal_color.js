@@ -56,7 +56,7 @@ window.addEventListener('click', function (e) {
 
 // Обработчик нажатия клавиши C для открытия модального окна
 document.addEventListener('keydown', function (e) {
-    if (e.key === 'c' || e.key === 'C' || e.key === 'ы' || e.key === 'Ы') {
+    if (e.key === 'c' || e.key === 'C' || e.key === 'с' || e.key === 'С') {
         openColorModal();
     }
 });

@@ -185,6 +185,94 @@
      background-color: var(--hover-color, #005500);
  }
 
+ /* Стили для выбора объекта */
+.object-selection {
+    text-align: center;
+}
+
+h3  {
+    color: var(--main-color, #0f0);
+    font-size: 16px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border-color, #0a0);
+    padding-bottom: 10px;
+    font-weight: normal;
+}
+
+.object-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.object-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: none;
+    position: relative;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--main-color, #0f0);
+}
+
+.object-option:hover {
+    background-color: var(--hover-color, #005500);
+    border: 1px solid var(--border-color, #0a0);
+}
+
+.object-option.selected {
+    background-color: var(--hover-color, #005500);
+    border: 1px solid var(--border-color, #0a0);
+}
+
+.object-option .selector {
+    color: var(--main-color, #0f0);
+    font-weight: bold;
+    opacity: 0;
+    transition: none;
+    width: 15px;
+    display: inline-block;
+    font-size: 14px;
+}
+
+.object-option.selected .selector,
+.object-option:hover .selector {
+    opacity: 1;
+}
+
+.render-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#back-button {
+    margin-top: 10px;
+}
+
+/* Скрываем ASCII контейнер до выбора объекта */
+.ascii-container:empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--main-color, #0f0);
+    opacity: 0.9;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.ascii-container:empty::before {
+    content: "SELECT OBJECT TO BEGIN";
+}
+
  @media (max-width: 1600px) {
      .title-box {
          width: 100%;
@@ -340,7 +428,6 @@ body.red-theme {
 
 /* Стиль для подсказки управления */
 .controls::before {
-    content: ">>> SYSTEM CONTROL PANEL <<<";
     display: block;
     text-align: center;
     font-size: 12px;
